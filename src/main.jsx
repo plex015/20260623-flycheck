@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
+const EXPLORE_ENDPOINT = '/api/explore';
 
 const formatDate = (iso) =>
   new Intl.DateTimeFormat('ro-RO', {
@@ -119,25 +119,21 @@ function extractDestination(destination, settings, durationValue) {
 }
 
 async function fetchExploreDestinations(settings, travelDuration, signal) {
-  const params = new URLSearchParams({
-    engine: 'google_travel_explore',
-    api_key: settings.apiKey.trim(),
-    departure_id: settings.departure.trim().toUpperCase(),
-    adults: String(settings.people),
-    currency: settings.currency,
-    type: '1',
-    month: '0',
-    travel_duration: travelDuration,
-    travel_mode: '1',
-    hl: 'ro',
-    gl: 'ro',
-    max_price: String(settings.maxPrice),
+  const response = await fetch(EXPLORE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      departure: settings.departure.trim().toUpperCase(),
+      people: Number(settings.people),
+      currency: settings.currency,
+      maxPrice: Number(settings.maxPrice),
+      travelDuration,
+    }),
+    signal,
   });
 
-  const response = await fetch(`${SERPAPI_ENDPOINT}?${params.toString()}`, { signal });
-  if (!response.ok) throw new Error(`SerpApi ${response.status}`);
-
   const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `API ${response.status}`);
   if (data.error) throw new Error(data.error);
 
   return (data.destinations || [])
@@ -172,7 +168,6 @@ async function scanExplore(settings, onProgress, signal) {
 
 function App() {
   const [settings, setSettings] = useState({
-    apiKey: localStorage.getItem('flycheck-serpapi-key') || '',
     departure: 'OTP',
     people: 2,
     maxPrice: 250,
@@ -182,7 +177,7 @@ function App() {
   const [flights, setFlights] = useState(sampleFlights);
   const [progress, setProgress] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [notice, setNotice] = useState('Mod demo: adauga cheia SerpApi pentru rezultate live din Google Travel Explore.');
+  const [notice, setNotice] = useState('Mod demo pana cand site-ul este publicat pe o platforma cu endpoint serverless.');
   const [controller, setController] = useState(null);
 
   const visibleFlights = useMemo(
@@ -212,13 +207,12 @@ function App() {
     event.preventDefault();
     setProgress(null);
 
-    if (!settings.apiKey.trim()) {
+    if (window.location.hostname.endsWith('github.io')) {
       setFlights(sampleFlights.filter((flight) => flight.price <= Number(settings.maxPrice)));
-      setNotice('Rezultate demo. Pentru cautare live catre destinatii din toata lumea, introdu cheia SerpApi.');
+      setNotice('GitHub Pages nu poate rula API serverless. Publica pe Vercel/Netlify cu SERPAPI_KEY pentru rezultate live.');
       return;
     }
 
-    localStorage.setItem('flycheck-serpapi-key', settings.apiKey.trim());
     const activeController = new AbortController();
     setController(activeController);
     setIsSearching(true);
@@ -255,16 +249,6 @@ function App() {
         </div>
 
         <form onSubmit={runSearch} className="controls">
-          <label>
-            Cheie SerpApi
-            <input
-              type="password"
-              value={settings.apiKey}
-              onChange={(event) => update('apiKey', event.target.value)}
-              placeholder="necesara pentru rezultate live"
-            />
-          </label>
-
           <label>
             Plecare
             <input
@@ -352,7 +336,7 @@ function App() {
                 </div>
                 <div className="flight-main">
                   <h3>{flight.destination}{flight.airport ? ` (${flight.airport})` : ''}</h3>
-                  <p>{flight.country} · {flight.airline}</p>
+                  <p>{flight.country} - {flight.airline}</p>
                   <div className="meta-row">
                     <span><CalendarDays size={15} /> {formatDate(flight.outboundDate)} - {formatDate(flight.returnDate)}</span>
                     {nights && <span>{nights} nopti</span>}

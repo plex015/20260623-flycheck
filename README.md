@@ -15,9 +15,13 @@ npm run dev
 
 Google Flights nu are API public direct pentru site-uri statice. Aplicatia foloseste SerpApi Google Travel Explore API (`engine=google_travel_explore`) ca intermediar pentru rezultate live.
 
-Cheia API se introduce in interfata si ramane in `localStorage` pe browserul tau.
+Cheia API nu se pune in frontend. Trebuie setata pe server ca variabila de mediu:
 
-Fara cheie API, site-ul porneste in mod demo.
+```bash
+SERPAPI_KEY=cheia_ta
+```
+
+Pe GitHub Pages aplicatia ramane in mod demo, fiindca GitHub Pages nu ruleaza endpoint-uri `/api`. Pentru live, publica repo-ul pe Vercel sau Netlify si seteaza `SERPAPI_KEY` in Environment Variables.
 
 ## Publicare GitHub Pages
 
