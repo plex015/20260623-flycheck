@@ -191,6 +191,65 @@ button.ghost {
   color: #ffffff;
 }
 
+.usage-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 14px;
+}
+
+.usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+button.icon-button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.usage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.usage-grid div {
+  display: grid;
+  gap: 3px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px;
+}
+
+.usage-grid strong {
+  color: #fca311;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.usage-grid span,
+.usage-panel p,
+.usage-panel small {
+  color: #d8dee9;
+}
+
+.usage-panel p,
+.usage-panel small {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .results-panel {
   padding: 34px;
   overflow: auto;

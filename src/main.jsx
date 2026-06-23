@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   CalendarDays,
@@ -7,6 +7,7 @@ import {
   Clock3,
   Globe2,
   Plane,
+  RefreshCcw,
   Search,
   Users,
   X,
@@ -14,6 +15,7 @@ import {
 import './styles.css';
 
 const EXPLORE_ENDPOINT = '/api/explore';
+const USAGE_ENDPOINT = '/api/usage';
 
 const formatDate = (iso) =>
   new Intl.DateTimeFormat('ro-RO', {
@@ -166,6 +168,13 @@ async function scanExplore(settings, onProgress, signal) {
   );
 }
 
+async function fetchUsage(signal) {
+  const response = await fetch(USAGE_ENDPOINT, { signal });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `API ${response.status}`);
+  return data;
+}
+
 function App() {
   const [settings, setSettings] = useState({
     departure: 'OTP',
@@ -179,6 +188,9 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [notice, setNotice] = useState('Mod demo pana cand site-ul este publicat pe o platforma cu endpoint serverless.');
   const [controller, setController] = useState(null);
+  const [usage, setUsage] = useState(null);
+  const [usageNotice, setUsageNotice] = useState('Apasa refresh pentru quota SerpApi.');
+  const [isUsageLoading, setIsUsageLoading] = useState(false);
 
   const visibleFlights = useMemo(
     () => flights.filter((flight) => flight.price <= Number(settings.maxPrice)),
@@ -188,6 +200,30 @@ function App() {
   const update = (key, value) => {
     setSettings((current) => ({ ...current, [key]: value }));
   };
+
+  const searchCost = settings.travelDurations.length;
+
+  const refreshUsage = async () => {
+    if (window.location.hostname.endsWith('github.io')) {
+      setUsageNotice('Quota live este disponibila pe Vercel, nu pe GitHub Pages.');
+      return;
+    }
+
+    setIsUsageLoading(true);
+    try {
+      const nextUsage = await fetchUsage();
+      setUsage(nextUsage);
+      setUsageNotice('Actualizat acum.');
+    } catch (error) {
+      setUsageNotice(error.message);
+    } finally {
+      setIsUsageLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshUsage();
+  }, []);
 
   const toggleDuration = (value) => {
     setSettings((current) => {
@@ -223,6 +259,7 @@ function App() {
       const liveFlights = await scanExplore(settings, setProgress, activeController.signal);
       setFlights(liveFlights);
       setNotice(liveFlights.length ? `Am gasit ${liveFlights.length} destinatii sub pretul ales.` : 'Nu am gasit destinatii sub pretul ales.');
+      refreshUsage();
     } catch (error) {
       if (error.name !== 'AbortError') setNotice(error.message);
     } finally {
@@ -308,6 +345,34 @@ function App() {
             )}
           </div>
         </form>
+
+        <div className="usage-panel">
+          <div className="usage-header">
+            <span>SerpApi quota</span>
+            <button type="button" className="icon-button" onClick={refreshUsage} disabled={isUsageLoading} title="Actualizeaza quota">
+              <RefreshCcw size={16} />
+            </button>
+          </div>
+
+          <div className="usage-grid">
+            <div>
+              <strong>{usage ? usage.hourLeft : '-'}</strong>
+              <span>ramase ora</span>
+            </div>
+            <div>
+              <strong>{usage ? usage.monthLeft : '-'}</strong>
+              <span>ramase luna</span>
+            </div>
+          </div>
+
+          <p>{usageNotice}</p>
+          <small>O cautare curenta consuma estimativ {searchCost} searches.</small>
+          {usage && (
+            <small>
+              Mai incap aproximativ {Math.floor(usage.monthLeft / searchCost)} cautari ca aceasta luna asta.
+            </small>
+          )}
+        </div>
       </section>
 
       <section className="results-panel">
