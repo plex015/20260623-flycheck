@@ -5,24 +5,15 @@ import {
   ChevronRight,
   CircleDollarSign,
   Clock3,
+  Globe2,
   Plane,
   Search,
-  Settings2,
   Users,
   X,
 } from 'lucide-react';
 import './styles.css';
 
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
-
-const addDays = (date, days) => {
-  const next = new Date(`${date}T12:00:00`);
-  next.setDate(next.getDate() + days);
-  return next.toISOString().slice(0, 10);
-};
 
 const formatDate = (iso) =>
   new Intl.DateTimeFormat('ro-RO', {
@@ -38,104 +29,110 @@ const formatMoney = (amount, currency) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
+const formatDuration = (minutes) => {
+  if (!minutes) return 'Durata indisponibila';
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+};
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const addDays = (date, days) => {
+  const next = new Date(`${date}T12:00:00`);
+  next.setDate(next.getDate() + days);
+  return next.toISOString().slice(0, 10);
+};
+
+const durationOptions = [
+  { value: '1', label: 'Weekend', note: '2-4 nopti' },
+  { value: '2', label: 'O saptamana', note: '5-8 nopti' },
+  { value: '3', label: 'Doua saptamani', note: '10-16 nopti' },
+];
+
 const sampleFlights = [
   {
-    id: 'demo-1',
-    price: 148,
+    id: 'demo-lis',
+    price: 96,
     currency: 'EUR',
-    outboundDate: addDays(todayIso(), 18),
+    destination: 'Lisabona',
+    country: 'Portugalia',
+    airport: 'LIS',
+    outboundDate: addDays(todayIso(), 19),
     returnDate: addDays(todayIso(), 23),
     airline: 'Wizz Air',
-    route: 'OTP -> BCN',
-    duration: '3h 20m',
+    duration: '4h 10m',
     stops: 'Direct',
-    bookingUrl: 'https://www.google.com/travel/flights',
+    bookingUrl: 'https://www.google.com/travel/explore',
   },
   {
-    id: 'demo-2',
-    price: 212,
+    id: 'demo-ath',
+    price: 121,
     currency: 'EUR',
-    outboundDate: addDays(todayIso(), 47),
-    returnDate: addDays(todayIso(), 54),
-    airline: 'Lufthansa',
-    route: 'OTP -> BCN',
-    duration: '5h 45m',
+    destination: 'Atena',
+    country: 'Grecia',
+    airport: 'ATH',
+    outboundDate: addDays(todayIso(), 38),
+    returnDate: addDays(todayIso(), 45),
+    airline: 'Aegean',
+    duration: '1h 35m',
+    stops: 'Direct',
+    bookingUrl: 'https://www.google.com/travel/explore',
+  },
+  {
+    id: 'demo-tok',
+    price: 548,
+    currency: 'EUR',
+    destination: 'Tokyo',
+    country: 'Japonia',
+    airport: 'NRT',
+    outboundDate: addDays(todayIso(), 93),
+    returnDate: addDays(todayIso(), 107),
+    airline: 'Qatar Airways',
+    duration: '16h 20m',
     stops: '1 stop',
-    bookingUrl: 'https://www.google.com/travel/flights',
-  },
-  {
-    id: 'demo-3',
-    price: 176,
-    currency: 'EUR',
-    outboundDate: addDays(todayIso(), 91),
-    returnDate: addDays(todayIso(), 96),
-    airline: 'Ryanair',
-    route: 'OTP -> BCN',
-    duration: '3h 15m',
-    stops: 'Direct',
-    bookingUrl: 'https://www.google.com/travel/flights',
+    bookingUrl: 'https://www.google.com/travel/explore',
   },
 ];
 
-function buildDateWindow(startDate, monthsAhead, stepDays) {
-  const dates = [];
-  const start = new Date(`${startDate}T12:00:00`);
-  const end = new Date(start);
-  end.setMonth(end.getMonth() + monthsAhead);
-
-  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + stepDays)) {
-    dates.push(cursor.toISOString().slice(0, 10));
-  }
-
-  return dates;
+function getNights(flight) {
+  if (!flight.outboundDate || !flight.returnDate) return null;
+  const start = new Date(`${flight.outboundDate}T12:00:00`);
+  const end = new Date(`${flight.returnDate}T12:00:00`);
+  return Math.round((end - start) / (24 * 60 * 60 * 1000));
 }
 
-function extractFlight(result, context, index) {
-  const firstLeg = result.flights?.[0];
-  const lastLeg = result.flights?.[result.flights.length - 1];
-  const route = firstLeg?.departure_airport?.id && lastLeg?.arrival_airport?.id
-    ? `${firstLeg.departure_airport.id} -> ${lastLeg.arrival_airport.id}`
-    : `${context.departure} -> ${context.arrival}`;
-
-  const stops = result.flights?.length > 1 ? `${result.flights.length - 1} stop` : 'Direct';
-  const bookingUrl = result.booking_token
-    ? `https://www.google.com/travel/flights/booking?tfs=${encodeURIComponent(result.booking_token)}`
-    : 'https://www.google.com/travel/flights';
-
+function extractDestination(destination, settings, durationValue) {
   return {
-    id: `${context.outboundDate}-${index}-${result.price}`,
-    price: Number(result.price),
-    currency: context.currency,
-    outboundDate: context.outboundDate,
-    returnDate: context.returnDate,
-    airline: firstLeg?.airline || result.airline_logo ? firstLeg?.airline || 'Google Flights' : 'Google Flights',
-    route,
-    duration: result.total_duration ? `${Math.floor(result.total_duration / 60)}h ${result.total_duration % 60}m` : 'Durata indisponibila',
-    stops,
-    bookingUrl,
+    id: `${durationValue}-${destination.destination_id || destination.name}-${destination.start_date}-${destination.flight_price}`,
+    price: Number(destination.flight_price),
+    currency: settings.currency,
+    destination: destination.name || 'Destinatie',
+    country: destination.country || 'Oriunde',
+    airport: destination.destination_airport?.code || '',
+    outboundDate: destination.start_date,
+    returnDate: destination.end_date,
+    airline: destination.airline || 'Google Flights',
+    duration: formatDuration(destination.flight_duration),
+    stops: destination.number_of_stops === 0 ? 'Direct' : `${destination.number_of_stops || 0} stop`,
+    bookingUrl: destination.link || 'https://www.google.com/travel/explore',
+    durationBucket: durationValue,
   };
 }
 
-async function fetchFlightsForDate(settings, outboundDate, signal) {
-  const returnDate = settings.tripType === 'round'
-    ? addDays(outboundDate, Number(settings.stayDays))
-    : undefined;
-
+async function fetchExploreDestinations(settings, travelDuration, signal) {
   const params = new URLSearchParams({
-    engine: 'google_flights',
-    api_key: settings.apiKey,
+    engine: 'google_travel_explore',
+    api_key: settings.apiKey.trim(),
     departure_id: settings.departure.trim().toUpperCase(),
-    arrival_id: settings.arrival.trim().toUpperCase(),
-    outbound_date: outboundDate,
     adults: String(settings.people),
     currency: settings.currency,
-    type: settings.tripType === 'round' ? '1' : '2',
+    type: '1',
+    month: '0',
+    travel_duration: travelDuration,
+    travel_mode: '1',
     hl: 'ro',
     gl: 'ro',
     max_price: String(settings.maxPrice),
   });
-
-  if (returnDate) params.set('return_date', returnDate);
 
   const response = await fetch(`${SERPAPI_ENDPOINT}?${params.toString()}`, { signal });
   if (!response.ok) throw new Error(`SerpApi ${response.status}`);
@@ -143,62 +140,49 @@ async function fetchFlightsForDate(settings, outboundDate, signal) {
   const data = await response.json();
   if (data.error) throw new Error(data.error);
 
-  return [...(data.best_flights || []), ...(data.other_flights || [])]
-    .map((flight, index) => extractFlight(flight, {
-      departure: settings.departure,
-      arrival: settings.arrival,
-      currency: settings.currency,
-      outboundDate,
-      returnDate,
-    }, index))
+  return (data.destinations || [])
+    .map((destination) => extractDestination(destination, settings, travelDuration))
     .filter((flight) => flight.price > 0 && flight.price <= Number(settings.maxPrice));
 }
 
-async function scanFlights(settings, onProgress, signal) {
-  const dates = buildDateWindow(settings.startDate, 6, Number(settings.stepDays));
+async function scanExplore(settings, onProgress, signal) {
+  const selectedDurations = settings.travelDurations;
   const results = [];
   let completed = 0;
 
-  for (const date of dates) {
+  for (const durationValue of selectedDurations) {
     if (signal.aborted) break;
 
-    try {
-      const dailyFlights = await fetchFlightsForDate(settings, date, signal);
-      results.push(...dailyFlights);
-    } catch (error) {
-      results.push({
-        id: `error-${date}`,
-        error: error.message,
-        outboundDate: date,
-      });
-    }
-
+    const destinations = await fetchExploreDestinations(settings, durationValue, signal);
+    results.push(...destinations);
     completed += 1;
-    onProgress({ completed, total: dates.length });
+    onProgress({ completed, total: selectedDurations.length });
   }
 
-  return results
-    .filter((flight) => !flight.error)
-    .sort((a, b) => a.price - b.price || a.outboundDate.localeCompare(b.outboundDate));
+  const unique = new Map();
+  for (const result of results) {
+    const key = `${result.destination}-${result.outboundDate}-${result.returnDate}-${result.price}`;
+    if (!unique.has(key)) unique.set(key, result);
+  }
+
+  return [...unique.values()].sort(
+    (a, b) => a.price - b.price || a.destination.localeCompare(b.destination),
+  );
 }
 
 function App() {
   const [settings, setSettings] = useState({
     apiKey: localStorage.getItem('flycheck-serpapi-key') || '',
     departure: 'OTP',
-    arrival: 'BCN',
     people: 2,
     maxPrice: 250,
     currency: 'EUR',
-    tripType: 'round',
-    stayDays: 5,
-    stepDays: 7,
-    startDate: todayIso(),
+    travelDurations: ['1', '2', '3'],
   });
   const [flights, setFlights] = useState(sampleFlights);
   const [progress, setProgress] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [notice, setNotice] = useState('Mod demo: adauga cheia SerpApi pentru rezultate live din Google Flights.');
+  const [notice, setNotice] = useState('Mod demo: adauga cheia SerpApi pentru rezultate live din Google Travel Explore.');
   const [controller, setController] = useState(null);
 
   const visibleFlights = useMemo(
@@ -210,12 +194,27 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
+  const toggleDuration = (value) => {
+    setSettings((current) => {
+      const exists = current.travelDurations.includes(value);
+      const nextDurations = exists
+        ? current.travelDurations.filter((item) => item !== value)
+        : [...current.travelDurations, value];
+
+      return {
+        ...current,
+        travelDurations: nextDurations.length ? nextDurations : [value],
+      };
+    });
+  };
+
   const runSearch = async (event) => {
     event.preventDefault();
+    setProgress(null);
 
     if (!settings.apiKey.trim()) {
       setFlights(sampleFlights.filter((flight) => flight.price <= Number(settings.maxPrice)));
-      setNotice('Rezultate demo. Pentru cautare live, introdu cheia SerpApi si ruleaza din nou.');
+      setNotice('Rezultate demo. Pentru cautare live catre destinatii din toata lumea, introdu cheia SerpApi.');
       return;
     }
 
@@ -223,15 +222,15 @@ function App() {
     const activeController = new AbortController();
     setController(activeController);
     setIsSearching(true);
-    setNotice('Caut rezultate live in urmatoarele 6 luni.');
-    setProgress({ completed: 0, total: buildDateWindow(settings.startDate, 6, Number(settings.stepDays)).length });
+    setNotice('Caut destinatii globale in Google Travel Explore pentru urmatoarele 6 luni.');
+    setProgress({ completed: 0, total: settings.travelDurations.length });
 
     try {
-      const liveFlights = await scanFlights(settings, setProgress, activeController.signal);
+      const liveFlights = await scanExplore(settings, setProgress, activeController.signal);
       setFlights(liveFlights);
-      setNotice(liveFlights.length ? `Am gasit ${liveFlights.length} zboruri sub pretul ales.` : 'Nu am gasit zboruri sub pretul ales.');
+      setNotice(liveFlights.length ? `Am gasit ${liveFlights.length} destinatii sub pretul ales.` : 'Nu am gasit destinatii sub pretul ales.');
     } catch (error) {
-      setNotice(error.message);
+      if (error.name !== 'AbortError') setNotice(error.message);
     } finally {
       setIsSearching(false);
       setController(null);
@@ -251,7 +250,7 @@ function App() {
           <div className="brand-mark"><Plane size={24} /></div>
           <div>
             <h1>FlyCheck</h1>
-            <p>Scaneaza Google Flights pe 6 luni si pastreaza tarifele sub buget.</p>
+            <p>Alegi doar plecarea. FlyCheck gaseste destinatii din toata lumea sub buget.</p>
           </div>
         </div>
 
@@ -262,20 +261,19 @@ function App() {
               type="password"
               value={settings.apiKey}
               onChange={(event) => update('apiKey', event.target.value)}
-              placeholder="opțional pentru demo"
+              placeholder="necesara pentru rezultate live"
             />
           </label>
 
-          <div className="field-grid">
-            <label>
-              Plecare
-              <input value={settings.departure} onChange={(event) => update('departure', event.target.value)} maxLength={3} />
-            </label>
-            <label>
-              Destinatie
-              <input value={settings.arrival} onChange={(event) => update('arrival', event.target.value)} maxLength={3} />
-            </label>
-          </div>
+          <label>
+            Plecare
+            <input
+              value={settings.departure}
+              onChange={(event) => update('departure', event.target.value)}
+              maxLength={24}
+              placeholder="OTP, CLJ, TSR sau oras"
+            />
+          </label>
 
           <div className="field-grid">
             <label>
@@ -288,50 +286,35 @@ function App() {
             </label>
           </div>
 
-          <div className="field-grid">
-            <label>
-              Moneda
-              <select value={settings.currency} onChange={(event) => update('currency', event.target.value)}>
-                <option>EUR</option>
-                <option>USD</option>
-                <option>RON</option>
-                <option>GBP</option>
-              </select>
-            </label>
-            <label>
-              Tip zbor
-              <select value={settings.tripType} onChange={(event) => update('tripType', event.target.value)}>
-                <option value="round">Dus-intors</option>
-                <option value="one">Doar dus</option>
-              </select>
-            </label>
-          </div>
-
-          <div className="field-grid">
-            <label>
-              <span><CalendarDays size={16} /> Start</span>
-              <input type="date" value={settings.startDate} onChange={(event) => update('startDate', event.target.value)} />
-            </label>
-            <label>
-              Nopti
-              <input type="number" min="1" max="60" disabled={settings.tripType !== 'round'} value={settings.stayDays} onChange={(event) => update('stayDays', event.target.value)} />
-            </label>
-          </div>
-
           <label>
-            <span><Settings2 size={16} /> Pas scanare</span>
-            <select value={settings.stepDays} onChange={(event) => update('stepDays', event.target.value)}>
-              <option value="1">Zilnic</option>
-              <option value="3">La 3 zile</option>
-              <option value="7">Saptamanal</option>
-              <option value="14">La 2 saptamani</option>
+            Moneda
+            <select value={settings.currency} onChange={(event) => update('currency', event.target.value)}>
+              <option>EUR</option>
+              <option>USD</option>
+              <option>RON</option>
+              <option>GBP</option>
             </select>
           </label>
+
+          <div className="duration-group" aria-label="Numar de nopti variabil">
+            <span><CalendarDays size={16} /> Numar de nopti</span>
+            {durationOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={settings.travelDurations.includes(option.value) ? 'toggle active' : 'toggle'}
+                onClick={() => toggleDuration(option.value)}
+              >
+                <strong>{option.label}</strong>
+                <small>{option.note}</small>
+              </button>
+            ))}
+          </div>
 
           <div className="actions">
             <button type="submit" disabled={isSearching}>
               <Search size={18} />
-              Cauta
+              Cauta oriunde
             </button>
             {isSearching && (
               <button type="button" className="ghost" onClick={stopSearch}>
@@ -347,7 +330,7 @@ function App() {
         <div className="results-header">
           <div>
             <p className="eyebrow">Urmatoarele 6 luni</p>
-            <h2>Zboruri sub {formatMoney(Number(settings.maxPrice), settings.currency)}</h2>
+            <h2>Destinatii sub {formatMoney(Number(settings.maxPrice), settings.currency)}</h2>
           </div>
           <div className="count-pill">{visibleFlights.length}</div>
         </div>
@@ -358,32 +341,37 @@ function App() {
         </div>
 
         <div className="flight-list">
-          {visibleFlights.map((flight) => (
-            <article className="flight-card" key={flight.id}>
-              <div className="price-block">
-                <strong>{formatMoney(flight.price, flight.currency)}</strong>
-                <span>{settings.people} pers.</span>
-              </div>
-              <div className="flight-main">
-                <h3>{flight.route}</h3>
-                <p>{flight.airline}</p>
-                <div className="meta-row">
-                  <span><CalendarDays size={15} /> {formatDate(flight.outboundDate)}{flight.returnDate ? ` - ${formatDate(flight.returnDate)}` : ''}</span>
-                  <span><Clock3 size={15} /> {flight.duration}</span>
-                  <span>{flight.stops}</span>
+          {visibleFlights.map((flight) => {
+            const nights = getNights(flight);
+
+            return (
+              <article className="flight-card" key={flight.id}>
+                <div className="price-block">
+                  <strong>{formatMoney(flight.price, flight.currency)}</strong>
+                  <span>{settings.people} pers.</span>
                 </div>
-              </div>
-              <a className="open-link" href={flight.bookingUrl} target="_blank" rel="noreferrer" title="Deschide in Google Flights">
-                <ChevronRight size={22} />
-              </a>
-            </article>
-          ))}
+                <div className="flight-main">
+                  <h3>{flight.destination}{flight.airport ? ` (${flight.airport})` : ''}</h3>
+                  <p>{flight.country} · {flight.airline}</p>
+                  <div className="meta-row">
+                    <span><CalendarDays size={15} /> {formatDate(flight.outboundDate)} - {formatDate(flight.returnDate)}</span>
+                    {nights && <span>{nights} nopti</span>}
+                    <span><Clock3 size={15} /> {flight.duration}</span>
+                    <span>{flight.stops}</span>
+                  </div>
+                </div>
+                <a className="open-link" href={flight.bookingUrl} target="_blank" rel="noreferrer" title="Deschide in Google Flights">
+                  <ChevronRight size={22} />
+                </a>
+              </article>
+            );
+          })}
 
           {!visibleFlights.length && (
             <div className="empty-state">
-              <Plane size={30} />
+              <Globe2 size={30} />
               <h3>Nimic sub buget inca</h3>
-              <p>Mareste pretul maxim, schimba pasul de scanare sau incearca o alta ruta.</p>
+              <p>Mareste pretul maxim, schimba numarul de nopti sau incearca alt aeroport de plecare.</p>
             </div>
           )}
         </div>

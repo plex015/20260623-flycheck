@@ -123,6 +123,43 @@ input:disabled {
   gap: 12px;
 }
 
+.duration-group {
+  display: grid;
+  gap: 9px;
+  color: #ebedf2;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.duration-group > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+button.toggle {
+  display: grid;
+  min-height: 58px;
+  justify-content: start;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  text-align: left;
+  padding: 9px 12px;
+}
+
+button.toggle.active {
+  border-color: #fca311;
+  background: rgba(252, 163, 17, 0.18);
+}
+
+button.toggle small {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   gap: 12px;
