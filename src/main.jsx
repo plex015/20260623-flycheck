@@ -102,6 +102,11 @@ function getNights(flight) {
   return Math.round((end - start) / (24 * 60 * 60 * 1000));
 }
 
+function toFlightsLink(link) {
+  if (!link) return 'https://www.google.com/travel/flights';
+  return link.replace('/travel/explore', '/travel/flights');
+}
+
 function extractDestination(destination, settings, durationValue) {
   return {
     id: `${durationValue}-${destination.destination_id || destination.name}-${destination.start_date}-${destination.flight_price}`,
@@ -115,7 +120,8 @@ function extractDestination(destination, settings, durationValue) {
     airline: destination.airline || 'Google Flights',
     duration: formatDuration(destination.flight_duration),
     stops: destination.number_of_stops === 0 ? 'Direct' : `${destination.number_of_stops || 0} stop`,
-    bookingUrl: destination.link || 'https://www.google.com/travel/explore',
+    bookingUrl: toFlightsLink(destination.link),
+    exploreUrl: destination.link || 'https://www.google.com/travel/explore',
     durationBucket: durationValue,
   };
 }
@@ -409,9 +415,14 @@ function App() {
                     <span>{flight.stops}</span>
                   </div>
                 </div>
-                <a className="open-link" href={flight.bookingUrl} target="_blank" rel="noreferrer" title="Deschide in Google Flights">
-                  <ChevronRight size={22} />
-                </a>
+                <div className="link-stack">
+                  <a className="open-link" href={flight.bookingUrl} target="_blank" rel="noreferrer" title="Deschide zborul in Google Flights">
+                    <ChevronRight size={22} />
+                  </a>
+                  <a className="secondary-link" href={flight.exploreUrl} target="_blank" rel="noreferrer">
+                    Explore
+                  </a>
+                </div>
               </article>
             );
           })}

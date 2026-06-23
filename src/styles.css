@@ -314,7 +314,7 @@ h2 {
 
 .flight-card {
   display: grid;
-  grid-template-columns: 150px 1fr 44px;
+  grid-template-columns: 150px 1fr 58px;
   gap: 18px;
   align-items: center;
   background: #ffffff;
@@ -372,6 +372,12 @@ h2 {
   background: #f1f4f8;
 }
 
+.link-stack {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
 .open-link {
   display: grid;
   width: 44px;
@@ -386,6 +392,17 @@ h2 {
 .open-link:hover {
   background: #fca311;
   transform: translateX(2px);
+}
+
+.secondary-link {
+  color: #637083;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.secondary-link:hover {
+  color: #14213d;
 }
 
 .empty-state {
@@ -428,6 +445,7 @@ h2 {
     font-size: 24px;
   }
 
+  .link-stack,
   .open-link {
     width: 100%;
   }
