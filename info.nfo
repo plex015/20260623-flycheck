@@ -1,0 +1,7 @@
+echo "# 20260623-flycheck" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/plex015/20260623-flycheck.git
+git push -u origin main
