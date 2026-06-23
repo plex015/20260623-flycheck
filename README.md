@@ -4,6 +4,12 @@ Site static pentru gasirea destinatiilor ieftine din Google Travel Explore.
 
 Utilizatorul alege doar aeroportul/orasul de plecare, numarul de persoane, pretul maxim si durata flexibila a calatoriei. Aplicatia returneaza destinatii din toata lumea pentru urmatoarele 6 luni.
 
+## Live
+
+Aplicatia cu rezultate live ruleaza pe Vercel:
+
+https://20260623-flycheck.vercel.app/
+
 ## Rulare locala
 
 ```bash
