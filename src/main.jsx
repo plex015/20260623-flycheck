@@ -207,7 +207,7 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
-  const searchCost = settings.travelDurations.length;
+  const searchCost = settings.travelDurations.length * 7;
 
   const refreshUsage = async () => {
     if (window.location.hostname.endsWith('github.io')) {
