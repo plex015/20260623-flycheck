@@ -258,7 +258,7 @@ function App() {
     const activeController = new AbortController();
     setController(activeController);
     setIsSearching(true);
-    setNotice('Caut destinatii globale in Google Travel Explore pentru urmatoarele 6 luni.');
+    setNotice('Caut zboruri live in Google Flights pentru date flexibile.');
     setProgress({ completed: 0, total: settings.travelDurations.length });
 
     try {
