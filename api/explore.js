@@ -153,7 +153,7 @@ async function verifyDealWithFlights({ departure, people, currency, maxPrice, de
           code: deal.destination_airport?.code || arrivalId,
           city: deal.name,
           country: deal.country,
-          link: deal.link,
+          link: data.search_metadata?.google_flights_url || deal.link,
         }, deal.start_date, deal.end_date),
         thumbnail: deal.thumbnail,
         description: deal.description,
