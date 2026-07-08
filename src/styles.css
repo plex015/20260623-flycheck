@@ -335,8 +335,14 @@ h2 {
 }
 
 .price-block span,
+.price-block small,
 .flight-main p {
   color: #687386;
+}
+
+.price-block small {
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .flight-main {
