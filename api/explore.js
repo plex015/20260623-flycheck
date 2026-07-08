@@ -46,7 +46,7 @@ function getDealDate(deal, directKey, serpApiKey) {
   );
 }
 
-function normalizeDeals(deals, people) {
+function normalizeDeals(deals) {
   return (deals || []).map((deal) => ({
     destination_id: deal.destination_id,
     name: deal.name,
@@ -54,8 +54,7 @@ function normalizeDeals(deals, people) {
     destination_airport: { code: deal.arrival_airport_code || '' },
     start_date: getDealDate(deal, 'start_date', 'outbound_date'),
     end_date: getDealDate(deal, 'end_date', 'return_date'),
-    flight_price: Number(deal.price) * people,
-    flight_price_per_person: deal.price,
+    flight_price: deal.price,
     flight_duration: deal.flight_duration,
     number_of_stops: deal.stops,
     airline: deal.airline,
@@ -152,7 +151,6 @@ export default async function handler(request, response) {
     const people = Math.max(1, Math.min(9, Number(body.people || 1)));
     const currency = String(body.currency || 'EUR').trim().toUpperCase();
     const maxPrice = Math.max(1, Number(body.maxPrice || 250));
-    const maxPricePerPerson = Math.max(1, Math.floor(maxPrice / people));
     const travelDuration = String(body.travelDuration || '1');
     const debug = Boolean(body.debug);
 
@@ -176,13 +174,13 @@ export default async function handler(request, response) {
         type: '1',
         adults: String(people),
         travel_duration: DEALS_DURATION_BY_UI_VALUE[travelDuration] || travelDuration,
-        max_price: String(maxPricePerPerson),
+        max_price: String(maxPrice),
       },
       {
         ...baseParams,
         type: '1',
         adults: String(people),
-        max_price: String(maxPricePerPerson),
+        max_price: String(maxPrice),
       },
       baseParams,
     ];
@@ -205,12 +203,10 @@ export default async function handler(request, response) {
       }
 
       if (Array.isArray(data.deals) && data.deals.length) {
-        const destinations = normalizeDeals(data.deals, people)
-          .filter((destination) => Number(destination.flight_price) <= maxPrice);
+        const destinations = normalizeDeals(data.deals);
         sendJson(response, 200, {
           destinations,
           source: 'google_flights_deals',
-          price_basis: 'group_total',
           fallback: attempt === baseParams ? 'minimal' : 'filtered',
           ...(debug
             ? {
