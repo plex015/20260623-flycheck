@@ -17,12 +17,32 @@ import './styles.css';
 const EXPLORE_ENDPOINT = '/api/explore';
 const USAGE_ENDPOINT = '/api/usage';
 
-const formatDate = (iso) =>
-  new Intl.DateTimeFormat('ro-RO', {
+const dateFormatter = new Intl.DateTimeFormat('ro-RO', {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
-  }).format(new Date(`${iso}T12:00:00`));
+  });
+
+const toDate = (iso) => {
+  if (!iso) return null;
+  const date = new Date(`${iso}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDate = (iso) => {
+  const date = toDate(iso);
+  return date ? dateFormatter.format(date) : 'Data indisponibila';
+};
+
+const formatDateRange = (startIso, endIso) => {
+  const start = toDate(startIso);
+  const end = toDate(endIso);
+
+  if (start && end) return `${dateFormatter.format(start)} - ${dateFormatter.format(end)}`;
+  if (start) return dateFormatter.format(start);
+  if (end) return dateFormatter.format(end);
+  return 'Data indisponibila';
+};
 
 const formatMoney = (amount, currency) =>
   new Intl.NumberFormat('ro-RO', {
@@ -103,10 +123,12 @@ const sampleFlights = [
 ];
 
 function getNights(flight) {
-  if (!flight.outboundDate || !flight.returnDate) return null;
-  const start = new Date(`${flight.outboundDate}T12:00:00`);
-  const end = new Date(`${flight.returnDate}T12:00:00`);
-  return Math.round((end - start) / (24 * 60 * 60 * 1000));
+  const start = toDate(flight.outboundDate);
+  const end = toDate(flight.returnDate);
+  if (!start || !end) return null;
+
+  const nights = Math.round((end - start) / (24 * 60 * 60 * 1000));
+  return Number.isFinite(nights) && nights > 0 ? nights : null;
 }
 
 function toFlightsLink(link) {
@@ -131,6 +153,37 @@ function extractDestination(destination, settings, durationValue) {
     exploreUrl: destination.link || 'https://www.google.com/travel/explore',
     durationBucket: durationValue,
   };
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="app-shell">
+          <section className="search-panel">
+            <div className="brand-row">
+              <div className="brand-mark"><Plane size={24} /></div>
+              <div>
+                <h1>FlyCheck</h1>
+                <p>A aparut o eroare la afisarea rezultatelor. Reincarca pagina si incearca din nou.</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 async function fetchExploreDestinations(settings, travelDuration, signal) {
@@ -416,7 +469,7 @@ function App() {
                   <h3>{flight.destination}{flight.airport ? ` (${flight.airport})` : ''}</h3>
                   <p>{flight.country} - {flight.airline}</p>
                   <div className="meta-row">
-                    <span><CalendarDays size={15} /> {formatDate(flight.outboundDate)} - {formatDate(flight.returnDate)}</span>
+                    <span><CalendarDays size={15} /> {formatDateRange(flight.outboundDate, flight.returnDate)}</span>
                     {nights && <span>{nights} nopti</span>}
                     <span><Clock3 size={15} /> {flight.duration}</span>
                     <span>{flight.stops}</span>
@@ -447,4 +500,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>,
+);
