@@ -368,7 +368,7 @@ function App() {
               <input type="number" min="1" max="9" value={settings.people} onChange={(event) => update('people', event.target.value)} />
             </label>
             <label>
-              <span><CircleDollarSign size={16} /> Pret maxim / pers.</span>
+              <span><CircleDollarSign size={16} /> Pret maxim</span>
               <input type="number" min="1" value={settings.maxPrice} onChange={(event) => update('maxPrice', event.target.value)} />
             </label>
           </div>
@@ -445,7 +445,7 @@ function App() {
         <div className="results-header">
           <div>
             <p className="eyebrow">Urmatoarele 6 luni</p>
-            <h2>Destinatii sub {formatMoney(Number(settings.maxPrice), settings.currency)} / pers.</h2>
+            <h2>Destinatii sub {formatMoney(Number(settings.maxPrice), settings.currency)}</h2>
           </div>
           <div className="count-pill">{visibleFlights.length}</div>
         </div>
@@ -458,16 +458,12 @@ function App() {
         <div className="flight-list">
           {visibleFlights.map((flight) => {
             const nights = getNights(flight);
-            const totalEstimate = flight.price * Number(settings.people);
 
             return (
               <article className="flight-card" key={flight.id}>
                 <div className="price-block">
                   <strong>{formatMoney(flight.price, flight.currency)}</strong>
-                  <span>de la / pers.</span>
-                  {Number(settings.people) > 1 && (
-                    <small>aprox. {formatMoney(totalEstimate, flight.currency)} total</small>
-                  )}
+                  <span>{settings.people} pers.</span>
                 </div>
                 <div className="flight-main">
                   <h3>{flight.destination}{flight.airport ? ` (${flight.airport})` : ''}</h3>
