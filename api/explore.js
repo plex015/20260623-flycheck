@@ -28,32 +28,14 @@ async function fetchSerpApi(params) {
   return { serpResponse, data };
 }
 
-function getUrlParam(url, key) {
-  if (!url) return '';
-
-  try {
-    return new URL(url).searchParams.get(key) || '';
-  } catch {
-    return '';
-  }
-}
-
-function getDealDate(deal, directKey, serpApiKey) {
-  return (
-    deal[directKey] ||
-    getUrlParam(deal.serpapi_flight_link, serpApiKey) ||
-    getUrlParam(deal.flight_link, serpApiKey)
-  );
-}
-
 function normalizeDeals(deals) {
   return (deals || []).map((deal) => ({
     destination_id: deal.destination_id,
     name: deal.name,
     country: deal.country,
     destination_airport: { code: deal.arrival_airport_code || '' },
-    start_date: getDealDate(deal, 'start_date', 'outbound_date'),
-    end_date: getDealDate(deal, 'end_date', 'return_date'),
+    start_date: deal.start_date,
+    end_date: deal.end_date,
     flight_price: deal.price,
     flight_duration: deal.flight_duration,
     number_of_stops: deal.stops,
