@@ -15,6 +15,12 @@ const NIGHTS_BY_UI_VALUE = {
   2: 7,
   3: 14,
 };
+const NIGHT_RANGES_BY_UI_VALUE = {
+  1: { min: 2, max: 4 },
+  2: { min: 5, max: 8 },
+  3: { min: 10, max: 16 },
+};
+const MAX_DEALS_TO_VERIFY = 8;
 
 function sendJson(response, status, payload) {
   response.statusCode = status;
@@ -46,7 +52,24 @@ function getDealDate(deal, directKey, serpApiKey) {
   );
 }
 
-function normalizeDeals(deals, people) {
+function getNights(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+
+  const start = new Date(`${startDate}T12:00:00`);
+  const end = new Date(`${endDate}T12:00:00`);
+  const nights = Math.round((end - start) / (24 * 60 * 60 * 1000));
+  return Number.isFinite(nights) && nights > 0 ? nights : null;
+}
+
+function isInNightRange(startDate, endDate, travelDuration) {
+  const range = NIGHT_RANGES_BY_UI_VALUE[travelDuration];
+  if (!range) return true;
+
+  const nights = getNights(startDate, endDate);
+  return Boolean(nights && nights >= range.min && nights <= range.max);
+}
+
+function normalizeDeals(deals, people, travelDuration) {
   return (deals || []).map((deal) => ({
     destination_id: deal.destination_id,
     name: deal.name,
@@ -65,7 +88,7 @@ function normalizeDeals(deals, people) {
     thumbnail: deal.thumbnail,
     description: deal.description,
     highlights: deal.highlights,
-  }));
+  })).filter((deal) => isInNightRange(deal.start_date, deal.end_date, travelDuration));
 }
 
 function isoDateAfter(days) {
@@ -93,8 +116,66 @@ function normalizeFlightOption(option, destination, outboundDate, returnDate) {
     number_of_stops: Math.max(0, legs.length - 1),
     airline: firstLeg.airline || 'Google Flights',
     airline_code: '',
-    link: 'https://www.google.com/travel/flights',
+    link: destination.link || 'https://www.google.com/travel/flights',
   };
+}
+
+async function verifyDealWithFlights({ departure, people, currency, maxPrice, deal }) {
+  const arrivalId = deal.destination_id;
+  if (!arrivalId || !deal.start_date || !deal.end_date) return null;
+
+  const params = new URLSearchParams({
+    engine: 'google_flights',
+    api_key: process.env.SERPAPI_KEY,
+    departure_id: departure,
+    arrival_id: arrivalId,
+    outbound_date: deal.start_date,
+    return_date: deal.end_date,
+    adults: String(people),
+    currency,
+    type: '1',
+    sort_by: '2',
+    max_price: String(maxPrice),
+    hl: 'en',
+    gl: 'us',
+  });
+
+  const { serpResponse, data } = await fetchSerpApi(params);
+  if (!serpResponse.ok || data.error) return null;
+
+  const options = [...(data.best_flights || []), ...(data.other_flights || [])]
+    .filter((option) => Number(option.price) > 0 && Number(option.price) <= maxPrice)
+    .sort((a, b) => Number(a.price) - Number(b.price));
+
+  return options[0]
+    ? {
+        ...normalizeFlightOption(options[0], {
+          code: deal.destination_airport?.code || arrivalId,
+          city: deal.name,
+          country: deal.country,
+          link: deal.link,
+        }, deal.start_date, deal.end_date),
+        thumbnail: deal.thumbnail,
+        description: deal.description,
+        highlights: deal.highlights,
+      }
+    : null;
+}
+
+async function verifyDeals({ departure, people, currency, maxPrice, deals }) {
+  const candidates = deals
+    .filter((deal) => Number(deal.flight_price) > 0 && Number(deal.flight_price) <= maxPrice)
+    .sort((a, b) => Number(a.flight_price) - Number(b.flight_price))
+    .slice(0, MAX_DEALS_TO_VERIFY);
+
+  const settled = await Promise.allSettled(
+    candidates.map((deal) => verifyDealWithFlights({ departure, people, currency, maxPrice, deal })),
+  );
+
+  return settled
+    .filter((result) => result.status === 'fulfilled' && result.value)
+    .map((result) => result.value)
+    .sort((a, b) => Number(a.flight_price) - Number(b.flight_price));
 }
 
 async function fetchRouteFallback({ departure, people, currency, maxPrice, travelDuration }) {
@@ -205,25 +286,38 @@ export default async function handler(request, response) {
       }
 
       if (Array.isArray(data.deals) && data.deals.length) {
-        const destinations = normalizeDeals(data.deals, people)
-          .filter((destination) => Number(destination.flight_price) <= maxPrice);
-        sendJson(response, 200, {
-          destinations,
-          source: 'google_flights_deals',
-          price_basis: 'group_total',
-          fallback: attempt === baseParams ? 'minimal' : 'filtered',
-          ...(debug
-            ? {
-                debug: {
-                  keys: Object.keys(data),
-                  status: data.search_metadata?.status,
-                  parameters: data.search_parameters,
-                  dealsCount: data.deals.length,
-                },
-              }
-            : {}),
+        const dealCandidates = normalizeDeals(data.deals, people, travelDuration);
+        const destinations = await verifyDeals({
+          departure,
+          people,
+          currency,
+          maxPrice,
+          deals: dealCandidates,
         });
-        return;
+
+        if (destinations.length) {
+          sendJson(response, 200, {
+            destinations,
+            source: 'google_flights_verified_deals',
+            price_basis: 'group_total',
+            verifiedCandidates: Math.min(dealCandidates.length, MAX_DEALS_TO_VERIFY),
+            fallback: attempt === baseParams ? 'minimal' : 'filtered',
+            ...(debug
+              ? {
+                  debug: {
+                    keys: Object.keys(data),
+                    status: data.search_metadata?.status,
+                    parameters: data.search_parameters,
+                    dealsCount: data.deals.length,
+                    durationMatchedDeals: dealCandidates.length,
+                  },
+                }
+              : {}),
+          });
+          return;
+        }
+
+        errors.push(`Nu am gasit zboruri verificate pentru ${dealCandidates.length} deal-uri potrivite.`);
       }
 
       usedAttempt = attempt;
