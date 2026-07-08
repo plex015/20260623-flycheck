@@ -247,7 +247,7 @@ function App() {
     people: 2,
     maxPrice: 250,
     currency: 'EUR',
-    travelDurations: ['2'],
+    travelDurations: ['1', '2', '3'],
   });
   const [flights, setFlights] = useState(sampleFlights);
   const [progress, setProgress] = useState(null);
@@ -293,9 +293,14 @@ function App() {
 
   const toggleDuration = (value) => {
     setSettings((current) => {
+      const exists = current.travelDurations.includes(value);
+      const nextDurations = exists
+        ? current.travelDurations.filter((item) => item !== value)
+        : [...current.travelDurations, value];
+
       return {
         ...current,
-        travelDurations: [value],
+        travelDurations: nextDurations.length ? nextDurations : [value],
       };
     });
   };
@@ -458,7 +463,7 @@ function App() {
               <article className="flight-card" key={flight.id}>
                 <div className="price-block">
                   <strong>{formatMoney(flight.price, flight.currency)}</strong>
-                  <span>total {settings.people} pers.</span>
+                  <span>{settings.people} pers.</span>
                 </div>
                 <div className="flight-main">
                   <h3>{flight.destination}{flight.airport ? ` (${flight.airport})` : ''}</h3>
