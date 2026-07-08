@@ -38,6 +38,13 @@ const formatDuration = (minutes) => {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+const isStaticHost = () => window.location.hostname.endsWith('github.io');
+
+const getInitialNotice = () =>
+  isStaticHost()
+    ? 'Mod demo pe GitHub Pages. Pentru rezultate live foloseste versiunea publicata pe Vercel.'
+    : 'Rezultate live disponibile. Apasa Cauta oriunde pentru destinatii din Google Flights.';
+
 const addDays = (date, days) => {
   const next = new Date(`${date}T12:00:00`);
   next.setDate(next.getDate() + days);
@@ -140,7 +147,7 @@ async function fetchExploreDestinations(settings, travelDuration, signal) {
     signal,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `API ${response.status}`);
   if (data.error) throw new Error(data.error);
 
@@ -176,7 +183,7 @@ async function scanExplore(settings, onProgress, signal) {
 
 async function fetchUsage(signal) {
   const response = await fetch(USAGE_ENDPOINT, { signal });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `API ${response.status}`);
   return data;
 }
@@ -192,7 +199,7 @@ function App() {
   const [flights, setFlights] = useState(sampleFlights);
   const [progress, setProgress] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [notice, setNotice] = useState('Mod demo pana cand site-ul este publicat pe o platforma cu endpoint serverless.');
+  const [notice, setNotice] = useState(getInitialNotice);
   const [controller, setController] = useState(null);
   const [usage, setUsage] = useState(null);
   const [usageNotice, setUsageNotice] = useState('Apasa refresh pentru quota SerpApi.');
@@ -210,7 +217,7 @@ function App() {
   const searchCost = settings.travelDurations.length * 7;
 
   const refreshUsage = async () => {
-    if (window.location.hostname.endsWith('github.io')) {
+    if (isStaticHost()) {
       setUsageNotice('Quota live este disponibila pe Vercel, nu pe GitHub Pages.');
       return;
     }
@@ -249,7 +256,7 @@ function App() {
     event.preventDefault();
     setProgress(null);
 
-    if (window.location.hostname.endsWith('github.io')) {
+    if (isStaticHost()) {
       setFlights(sampleFlights.filter((flight) => flight.price <= Number(settings.maxPrice)));
       setNotice('GitHub Pages nu poate rula API serverless. Publica pe Vercel/Netlify cu SERPAPI_KEY pentru rezultate live.');
       return;
